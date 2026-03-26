@@ -3,13 +3,19 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var store: ProductStore
     @EnvironmentObject var auth:  AuthManager
-    @State private var notificationManager = NotificationManager()
-    @State private var showResetAlert  = false
+    @State private var showResetAlert   = false
     @State private var showSignOutAlert = false
+
+    private let monthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM"
+        return f
+    }()
 
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: Expiry Notifications
                 Section {
                     Toggle("Enable Notifications", isOn: $store.settings.notificationsEnabled)
                         .tint(.teal)
@@ -28,18 +34,55 @@ struct SettingsView: View {
                         )
                     }
                 } header: {
-                    Text("Notifications")
+                    Text("Expiry Notifications")
                 } footer: {
                     Text("You'll be notified when items are approaching their expiry date.")
                 }
 
-                Section("Statistics") {
-                    LabeledContent("Total Products", value: "\(store.products.count)")
-                    LabeledContent("Expired",        value: "\(store.products.filter { $0.status == .expired  }.count)")
-                    LabeledContent("Expiring Soon",  value: "\(store.products.filter { $0.status == .critical }.count)")
-                    LabeledContent("Categories",     value: "\(store.categories.count)")
+                // MARK: Shopping List Notifications
+                Section {
+                    Toggle("Shopping List Reminders", isOn: $store.settings.shoppingListNotificationsEnabled)
+                        .tint(.teal)
+
+                    if store.settings.shoppingListNotificationsEnabled {
+                        Picker("Reminder Interval", selection: $store.settings.shoppingListNotificationInterval) {
+                            ForEach(NotificationInterval.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Shopping List Notifications")
+                } footer: {
+                    Text("Get reminded to go shopping when you have items on your list.")
                 }
 
+                // MARK: Statistics
+                Section("Statistics") {
+                    LabeledContent("Total Products",   value: "\(store.products.count)")
+                    LabeledContent("Expired",          value: "\(store.products.filter { $0.status == .expired  }.count)")
+                    LabeledContent("Expiring Soon",    value: "\(store.products.filter { $0.status == .critical }.count)")
+                    LabeledContent("Categories",       value: "\(store.categories.count)")
+                    LabeledContent("Shopping Items",   value: "\(store.shoppingItems.filter { !$0.isPurchased }.count)")
+                }
+
+                // MARK: Waste Tracker
+                Section {
+                    LabeledContent("Consumed this month") {
+                        Label("\(store.consumedThisMonth)", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    LabeledContent("Discarded this month") {
+                        Label("\(store.wastedThisMonth)", systemImage: "trash.fill")
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Waste Tracker — \(monthFormatter.string(from: Date()))")
+                } footer: {
+                    Text("Tracks items you mark as consumed vs. discarded.")
+                }
+
+                // MARK: Account
                 Section("Account") {
                     if !auth.userEmail.isEmpty {
                         LabeledContent("Signed in as", value: auth.userEmail)
@@ -51,12 +94,12 @@ struct SettingsView: View {
                     }
                 }
 
+                // MARK: About
                 Section("About") {
                     LabeledContent("App",     value: "PantryPal")
                     LabeledContent("Version", value: "1.0.0")
                     LabeledContent("Storage", value: "Firebase Firestore")
                 }
-
 
                 Section("App Icon") {
                     NavigationLink(destination: IconExporterView()) {
@@ -75,7 +118,11 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .onChange(of: store.settings) { _, _ in
                 store.saveSettings()
-                notificationManager.scheduleAll(products: store.products, settings: store.settings)
+                NotificationManager.shared.scheduleAll(products: store.products, settings: store.settings)
+                NotificationManager.shared.scheduleShoppingListReminder(
+                    items: store.shoppingItems,
+                    settings: store.settings
+                )
             }
             .alert("Sign Out?", isPresented: $showSignOutAlert) {
                 Button("Sign Out", role: .destructive) { auth.signOut() }

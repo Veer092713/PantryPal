@@ -132,13 +132,13 @@ struct AddCategoryView: View {
                                     .frame(width: 44, height: 44)
                                     .background(
                                         selectedIcon == icon
-                                        ? (Color(hex: selectedColor) ?? .teal).opacity(0.2)
+                                        ? Color(hex: selectedColor).opacity(0.2)
                                         : Color.clear,
                                         in: RoundedRectangle(cornerRadius: 10)
                                     )
                                     .foregroundStyle(
                                         selectedIcon == icon
-                                        ? (Color(hex: selectedColor) ?? .teal)
+                                        ? Color(hex: selectedColor)
                                         : .secondary
                                     )
                             }
@@ -154,12 +154,12 @@ struct AddCategoryView: View {
                                 selectedColor = hex
                             } label: {
                                 Circle()
-                                    .fill(Color(hex: hex) ?? .gray)
+                                    .fill(Color(hex: hex))
                                     .frame(width: 36, height: 36)
                                     .overlay(
                                         Circle().strokeBorder(.white, lineWidth: selectedColor == hex ? 3 : 0)
                                     )
-                                    .shadow(color: (Color(hex: hex) ?? .gray).opacity(0.5),
+                                    .shadow(color: Color(hex: hex).opacity(0.5),
                                             radius: selectedColor == hex ? 6 : 0)
                             }
                         }

@@ -14,8 +14,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct PantryPalApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
-    @StateObject private var auth  = AuthManager()
-    @StateObject private var store = ProductStore()
+    @StateObject private var auth     = AuthManager()
+    @StateObject private var store    = ProductStore()
+    @StateObject private var appState = AppState()
 
     init() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
@@ -25,9 +26,15 @@ struct PantryPalApp: App {
         WindowGroup {
             Group {
                 if auth.isSignedIn {
-                    ContentView()
-                        .environmentObject(store)
-                        .environmentObject(auth)
+                    if appState.onboardingCompleted {
+                        ContentView()
+                            .environmentObject(store)
+                            .environmentObject(auth)
+                            .environmentObject(appState)
+                    } else {
+                        OnboardingView()
+                            .environmentObject(appState)
+                    }
                 } else {
                     WelcomeView()
                         .environmentObject(auth)

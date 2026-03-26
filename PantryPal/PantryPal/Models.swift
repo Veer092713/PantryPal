@@ -29,6 +29,7 @@ struct Product: Identifiable, Codable, Equatable {
     var expiryDate: Date
     var addedDate: Date = Date()
     var notes: String = ""
+    var quantity: Int = 1
     var barcode: String? = nil
     var imageData: Data? = nil     // local only — not synced to Firestore
 
@@ -44,6 +45,25 @@ struct Product: Identifiable, Codable, Equatable {
         default:      return .good
         }
     }
+}
+
+// MARK: - Shopping Item Model
+struct ShoppingItem: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var name: String
+    var brand: String = ""
+    var quantity: Int = 1
+    var addedDate: Date = Date()
+    var isPurchased: Bool = false
+}
+
+// MARK: - Waste Entry Model
+struct WasteEntry: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var productName: String
+    var productBrand: String
+    var wasWasted: Bool   // true = discarded/threw away, false = consumed/used up
+    var date: Date = Date()
 }
 
 // MARK: - Expiry Status
@@ -92,6 +112,8 @@ struct AppSettings: Codable, Equatable {
     var notificationInterval: NotificationInterval = .daily
     var notifyDaysBefore: Int = 3
     var notificationsEnabled: Bool = true
+    var shoppingListNotificationsEnabled: Bool = false
+    var shoppingListNotificationInterval: NotificationInterval = .weekly
 }
 
 // MARK: - Color Hex Extension
@@ -99,13 +121,13 @@ extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
+        guard Scanner(string: hex).scanHexInt64(&int) else { self = .clear; return }
         let a, r, g, b: UInt64
         switch hex.count {
         case 3: (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
         case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
         case 8: (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default: (a, r, g, b) = (255, 0, 0, 0)
+        default: self = .clear; return
         }
         self.init(.sRGB,
                   red: Double(r) / 255,
@@ -115,11 +137,19 @@ extension Color {
     }
 }
 
+// MARK: - Haptic Feedback Helper
+enum HapticFeedback {
+    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+    static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        UINotificationFeedbackGenerator().notificationOccurred(type)
+    }
+}
+
 // MARK: - Firestore Serialization: Product
 extension Product {
 
-    /// Converts a Product to a Firestore-compatible dictionary.
-    /// Note: imageData is intentionally excluded (use Firebase Storage for image sync).
     var firestoreData: [String: Any] {
         var data: [String: Any] = [
             "id":         id.uuidString,
@@ -128,13 +158,13 @@ extension Product {
             "categoryID": categoryID.uuidString,
             "expiryDate": Timestamp(date: expiryDate),
             "addedDate":  Timestamp(date: addedDate),
-            "notes":      notes
+            "notes":      notes,
+            "quantity":   quantity
         ]
         if let barcode { data["barcode"] = barcode }
         return data
     }
 
-    /// Failable initializer from a raw Firestore document dictionary.
     init?(from data: [String: Any]) {
         guard
             let idStr    = data["id"]         as? String,   let id         = UUID(uuidString: idStr),
@@ -151,9 +181,10 @@ extension Product {
         self.categoryID = categoryID
         self.expiryDate = expiryTS.dateValue()
         self.addedDate  = addedTS.dateValue()
-        self.notes      = data["notes"]   as? String ?? ""
-        self.barcode    = data["barcode"] as? String
-        self.imageData  = nil   // not stored in Firestore
+        self.notes      = data["notes"]    as? String ?? ""
+        self.quantity   = data["quantity"] as? Int    ?? 1
+        self.barcode    = data["barcode"]  as? String
+        self.imageData  = nil
     }
 }
 
@@ -181,5 +212,64 @@ extension Category {
         self.name     = name
         self.icon     = icon
         self.colorHex = colorHex
+    }
+}
+
+// MARK: - Firestore Serialization: ShoppingItem
+extension ShoppingItem {
+
+    var firestoreData: [String: Any] {
+        [
+            "id":          id.uuidString,
+            "name":        name,
+            "brand":       brand,
+            "quantity":    quantity,
+            "addedDate":   Timestamp(date: addedDate),
+            "isPurchased": isPurchased
+        ]
+    }
+
+    init?(from data: [String: Any]) {
+        guard
+            let idStr   = data["id"]   as? String, let id = UUID(uuidString: idStr),
+            let name    = data["name"] as? String,
+            let addedTS = data["addedDate"] as? Timestamp
+        else { return nil }
+
+        self.id          = id
+        self.name        = name
+        self.brand       = data["brand"]       as? String ?? ""
+        self.quantity    = data["quantity"]    as? Int    ?? 1
+        self.addedDate   = addedTS.dateValue()
+        self.isPurchased = data["isPurchased"] as? Bool   ?? false
+    }
+}
+
+// MARK: - Firestore Serialization: WasteEntry
+extension WasteEntry {
+
+    var firestoreData: [String: Any] {
+        [
+            "id":           id.uuidString,
+            "productName":  productName,
+            "productBrand": productBrand,
+            "wasWasted":    wasWasted,
+            "date":         Timestamp(date: date)
+        ]
+    }
+
+    init?(from data: [String: Any]) {
+        guard
+            let idStr       = data["id"]          as? String, let id = UUID(uuidString: idStr),
+            let productName = data["productName"]  as? String,
+            let wasWasted   = data["wasWasted"]    as? Bool,
+            let dateTS      = data["date"]         as? Timestamp
+        else { return nil }
+
+        self.id           = id
+        self.productName  = productName
+        self.productBrand = data["productBrand"] as? String ?? ""
+        self.wasWasted    = wasWasted
+        self.date         = dateTS.dateValue()
     }
 }

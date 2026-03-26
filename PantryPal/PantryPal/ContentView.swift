@@ -1,32 +1,33 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var store: ProductStore
-    @State private var notificationManager = NotificationManager()
-    @State private var selectedTab    = 0
-    @State private var showAddProduct = false
+    @EnvironmentObject var store:    ProductStore
+    @EnvironmentObject var appState: AppState
     @State private var bannerProduct: Product? = nil
     @State private var showBanner     = false
-    @State private var filterStatus: ExpiryStatus? = nil
 
     var body: some View {
         ZStack(alignment: .top) {
-            TabView(selection: $selectedTab) {
-                HomeView(showAddProduct: $showAddProduct, selectedTab: $selectedTab, filterStatus: $filterStatus)
+            TabView(selection: $appState.selectedTab) {
+                HomeView()
                     .tabItem { Label("Home",       systemImage: "house.fill") }
                     .tag(0)
 
-                ProductListView(filterStatus: $filterStatus)
+                ProductListView()
                     .tabItem { Label("All Items",  systemImage: "list.bullet") }
                     .tag(1)
 
+                ShoppingListView()
+                    .tabItem { Label("Shopping",   systemImage: "cart.fill") }
+                    .tag(2)
+
                 CategoriesView()
                     .tabItem { Label("Categories", systemImage: "square.grid.2x2.fill") }
-                    .tag(2)
+                    .tag(3)
 
                 SettingsView()
                     .tabItem { Label("Settings",   systemImage: "gearshape.fill") }
-                    .tag(3)
+                    .tag(4)
             }
             .tint(.teal)
 
@@ -38,11 +39,20 @@ struct ContentView: View {
                 .zIndex(10)
             }
         }
-        .sheet(isPresented: $showAddProduct) {
-            AddProductView(isPresented: $showAddProduct)
-        }
         .onAppear { checkForExpiringItems() }
         .onChange(of: store.products) { _, _ in checkForExpiringItems() }
+        .onChange(of: store.shoppingItems) { _, newItems in
+            NotificationManager.shared.scheduleShoppingListReminder(items: newItems, settings: store.settings)
+        }
+        // Surface Firestore errors to the user
+        .alert("Sync Error", isPresented: Binding(
+            get: { store.lastError != nil },
+            set: { if !$0 { store.lastError = nil } }
+        )) {
+            Button("OK", role: .cancel) { store.lastError = nil }
+        } message: {
+            Text(store.lastError ?? "")
+        }
     }
 
     private func checkForExpiringItems() {

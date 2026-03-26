@@ -1,16 +1,15 @@
 import SwiftUI
 
 struct HomeView: View {
-    @EnvironmentObject var store: ProductStore
-    @EnvironmentObject var auth:  AuthManager
-    @Binding var showAddProduct: Bool
-    @Binding var selectedTab: Int
-    @Binding var filterStatus: ExpiryStatus?
+    @EnvironmentObject var store:    ProductStore
+    @EnvironmentObject var auth:     AuthManager
+    @EnvironmentObject var appState: AppState
+    @State private var showAddProduct = false
 
     var expiredCount:  Int { store.products.filter { $0.status == .expired  }.count }
     var criticalCount: Int { store.products.filter { $0.status == .critical }.count }
     var warningCount:  Int { store.products.filter { $0.status == .warning  }.count }
-    var laterCount:    Int { store.products.filter { $0.status == .good     }.count }
+    var freshCount:    Int { store.products.filter { $0.status == .good     }.count }
 
     var body: some View {
         NavigationStack {
@@ -92,20 +91,35 @@ struct HomeView: View {
                                 .padding(.horizontal)
 
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                Button { filterStatus = .expired;  selectedTab = 1 } label: {
-                                    StatusCard(label: "Expired",         count: expiredCount,  status: .expired)
+                                Button {
+                                    appState.filterStatus = .expired
+                                    appState.selectedTab  = 1
+                                } label: {
+                                    StatusCard(label: "Expired",      count: expiredCount,  status: .expired)
                                 }
                                 .buttonStyle(.plain)
-                                Button { filterStatus = .critical; selectedTab = 1 } label: {
-                                    StatusCard(label: "Expires Soon",    count: criticalCount, status: .critical)
+
+                                Button {
+                                    appState.filterStatus = .critical
+                                    appState.selectedTab  = 1
+                                } label: {
+                                    StatusCard(label: "Expires Soon", count: criticalCount, status: .critical)
                                 }
                                 .buttonStyle(.plain)
-                                Button { filterStatus = .warning;  selectedTab = 1 } label: {
-                                    StatusCard(label: "Expiring",        count: warningCount,  status: .warning)
+
+                                Button {
+                                    appState.filterStatus = .warning
+                                    appState.selectedTab  = 1
+                                } label: {
+                                    StatusCard(label: "Expiring",     count: warningCount,  status: .warning)
                                 }
                                 .buttonStyle(.plain)
-                                Button { filterStatus = .good;     selectedTab = 1 } label: {
-                                    StatusCard(label: "Expiring Later",  count: laterCount,    status: .good)
+
+                                Button {
+                                    appState.filterStatus = .good
+                                    appState.selectedTab  = 1
+                                } label: {
+                                    StatusCard(label: "Fresh",        count: freshCount,    status: .good)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -144,6 +158,9 @@ struct HomeView: View {
                 .padding(.top)
             }
             .toolbar(.hidden, for: .navigationBar)
+        }
+        .sheet(isPresented: $showAddProduct) {
+            AddProductView(isPresented: $showAddProduct)
         }
     }
 }

@@ -3,10 +3,8 @@ import PhotosUI
 import VisionKit
 
 // MARK: - AddProductView
-
 struct AddProductView: View {
     @EnvironmentObject var store: ProductStore
-    @State private var notificationManager = NotificationManager()
     @Environment(\.dismiss) var dismiss
 
     @Binding var isPresented: Bool
@@ -17,6 +15,7 @@ struct AddProductView: View {
     @State private var selectedCatID: UUID?  = nil
     @State private var expiryDate:    Date   = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
     @State private var notes:         String = ""
+    @State private var quantity:      Int    = 1
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var imageData:     Data?  = nil
 
@@ -61,32 +60,35 @@ struct AddProductView: View {
                 Section {
                     HStack {
                         TextField("Name *", text: $name)
-                        if !isEditing {
-                            Button { activeScanMode = .productName } label: {
-                                Image(systemName: "text.viewfinder")
-                                    .foregroundStyle(.teal)
-                                    .font(.title3)
-                            }
-                            .buttonStyle(.plain)
+                        Button { activeScanMode = .productName } label: {
+                            Image(systemName: "text.viewfinder")
+                                .foregroundStyle(.teal)
+                                .font(.title3)
                         }
+                        .buttonStyle(.plain)
                     }
                     TextField("Brand", text: $brand)
+                    Button { activeScanMode = .barcode } label: {
+                        Label("Scan Barcode — Auto-fills Name & Brand", systemImage: "barcode.viewfinder")
+                            .foregroundStyle(.teal)
+                    }
                 } header: {
                     Text("Product Name")
                 } footer: {
-                    if !isEditing {
-                        Text("Tap the scan icon to scan the name off the packaging")
-                            .font(.caption2)
-                    }
+                    Text("Scan the barcode for the best results, or tap the icon to scan text manually")
+                        .font(.caption2)
+                }
+
+                // MARK: Quantity
+                Section("Quantity") {
+                    Stepper("Quantity: \(quantity)", value: $quantity, in: 1...99)
                 }
 
                 // MARK: Expiry Date
                 Section("Expiry / Best By Date") {
-                    if !isEditing {
-                        Button { activeScanMode = .expiryDate } label: {
-                            Label("Scan Date from Package", systemImage: "calendar.badge.clock")
-                                .foregroundStyle(.teal)
-                        }
+                    Button { activeScanMode = .expiryDate } label: {
+                        Label("Scan Date from Package", systemImage: "calendar.badge.clock")
+                            .foregroundStyle(.teal)
                     }
                     DatePicker("Expiry Date", selection: $expiryDate, displayedComponents: .date)
                         .datePickerStyle(.graphical)
@@ -125,6 +127,7 @@ struct AddProductView: View {
             .sheet(item: $activeScanMode) { mode in
                 FieldScannerSheet(mode: mode) { result in
                     apply(result)
+                    HapticFeedback.notification(.success)
                 }
             }
         }
@@ -135,9 +138,12 @@ struct AddProductView: View {
     private func apply(_ result: ScanFieldResult) {
         switch result {
         case .name(let text):
-            name = text
+            if !text.isEmpty { name = text }
         case .date(let date):
             expiryDate = date
+        case .product(let n, let b):
+            if !n.isEmpty { name = n }
+            if !b.isEmpty { brand = b }
         }
     }
 
@@ -151,6 +157,7 @@ struct AddProductView: View {
         selectedCatID = p.categoryID
         expiryDate    = p.expiryDate
         notes         = p.notes
+        quantity      = p.quantity
         imageData     = p.imageData
     }
 
@@ -166,20 +173,23 @@ struct AddProductView: View {
             updated.categoryID = catID
             updated.expiryDate = expiryDate
             updated.notes      = notes
+            updated.quantity   = quantity
             updated.imageData  = imageData
             store.updateProduct(updated)
-            notificationManager.scheduleExpiryNotification(for: updated)
+            NotificationManager.shared.scheduleExpiryNotification(for: updated, settings: store.settings)
         } else {
             let product = Product(
                 name:       name.trimmingCharacters(in: .whitespaces),
                 brand:      brand.trimmingCharacters(in: .whitespaces),
                 categoryID: catID,
                 expiryDate: expiryDate,
-                notes:      notes
+                notes:      notes,
+                quantity:   quantity
             )
             store.addProduct(product)
-            notificationManager.scheduleExpiryNotification(for: product)
+            NotificationManager.shared.scheduleExpiryNotification(for: product, settings: store.settings)
         }
+        HapticFeedback.notification(.success)
         isPresented = false
     }
 }
