@@ -6,10 +6,18 @@ struct HomeView: View {
     @EnvironmentObject var appState: AppState
     @State private var showAddProduct = false
 
-    var expiredCount:  Int { store.products.filter { $0.status == .expired  }.count }
-    var criticalCount: Int { store.products.filter { $0.status == .critical }.count }
-    var warningCount:  Int { store.products.filter { $0.status == .warning  }.count }
-    var freshCount:    Int { store.products.filter { $0.status == .good     }.count }
+    var statusCounts: (expired: Int, critical: Int, warning: Int, fresh: Int) {
+        var expired = 0, critical = 0, warning = 0, fresh = 0
+        for p in store.products {
+            switch p.status {
+            case .expired:  expired  += 1
+            case .critical: critical += 1
+            case .warning:  warning  += 1
+            case .good:     fresh    += 1
+            }
+        }
+        return (expired, critical, warning, fresh)
+    }
 
     var body: some View {
         NavigationStack {
@@ -95,7 +103,7 @@ struct HomeView: View {
                                     appState.filterStatus = .expired
                                     appState.selectedTab  = 1
                                 } label: {
-                                    StatusCard(label: "Expired",      count: expiredCount,  status: .expired)
+                                    StatusCard(label: "Expired",      count: statusCounts.expired,  status: .expired)
                                 }
                                 .buttonStyle(.plain)
 
@@ -103,7 +111,7 @@ struct HomeView: View {
                                     appState.filterStatus = .critical
                                     appState.selectedTab  = 1
                                 } label: {
-                                    StatusCard(label: "Expires Soon", count: criticalCount, status: .critical)
+                                    StatusCard(label: "Expires Soon", count: statusCounts.critical, status: .critical)
                                 }
                                 .buttonStyle(.plain)
 
@@ -111,7 +119,7 @@ struct HomeView: View {
                                     appState.filterStatus = .warning
                                     appState.selectedTab  = 1
                                 } label: {
-                                    StatusCard(label: "Expiring",     count: warningCount,  status: .warning)
+                                    StatusCard(label: "Expiring",     count: statusCounts.warning,  status: .warning)
                                 }
                                 .buttonStyle(.plain)
 
@@ -119,7 +127,7 @@ struct HomeView: View {
                                     appState.filterStatus = .good
                                     appState.selectedTab  = 1
                                 } label: {
-                                    StatusCard(label: "Fresh",        count: freshCount,    status: .good)
+                                    StatusCard(label: "Fresh",        count: statusCounts.fresh,    status: .good)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -145,7 +153,7 @@ struct HomeView: View {
 
                                 ForEach(expiring) { product in
                                     NavigationLink(destination: ProductDetailView(product: product)) {
-                                        ProductRow(product: product)
+                                        ProductRow(product: product, category: store.category(for: product))
                                     }
                                     .padding(.horizontal)
                                 }

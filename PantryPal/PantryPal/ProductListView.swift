@@ -47,7 +47,7 @@ struct ProductListView: View {
                     List {
                         ForEach(filtered) { product in
                             NavigationLink(destination: ProductDetailView(product: product)) {
-                                ProductRow(product: product)
+                                ProductRow(product: product, category: store.category(for: product))
                             }
                             .swipeActions(edge: .leading, allowsFullSwipe: true) {
                                 Button {
@@ -120,10 +120,8 @@ struct ProductListView: View {
 
 // MARK: - ProductRow
 struct ProductRow: View {
-    @EnvironmentObject var store: ProductStore
     let product: Product
-
-    var category: Category? { store.category(for: product) }
+    let category: Category?
 
     var body: some View {
         HStack(spacing: 12) {
