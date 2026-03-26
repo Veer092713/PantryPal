@@ -443,7 +443,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = PantryPal;
 				INFOPLIST_KEY_NSCameraUsageDescription = "PantryPal uses the camera to scan barcodes and expiry dates on your products.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PantryPal uses your photo library so you can add product photos.";
-				INFOPLIST_KEY_NSSiriUsageDescription = "PantryPilot uses Siri to add products, manage your shopping list, and check expiry dates.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -480,7 +479,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = PantryPal;
 				INFOPLIST_KEY_NSCameraUsageDescription = "PantryPal uses the camera to scan barcodes and expiry dates on your products.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PantryPal uses your photo library so you can add product photos.";
-				INFOPLIST_KEY_NSSiriUsageDescription = "PantryPilot uses Siri to add products, manage your shopping list, and check expiry dates.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
