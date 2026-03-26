@@ -84,7 +84,7 @@ struct CategoryProductsView: View {
             } else {
                 List(products) { product in
                     NavigationLink(destination: ProductDetailView(product: product)) {
-                        ProductRow(product: product)
+                        ProductRow(product: product, category: category)
                     }
                 }
                 .listStyle(.insetGrouped)
